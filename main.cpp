@@ -2,12 +2,157 @@
 #include <cstring>
 #include <fstream>
 #include <sstream>
-
 using namespace std;
 
+
+template <class T>
+struct DynamicArray {
+    int arraySize = {};
+    int numberOfNodes = {};
+    T* arrayPointer = nullptr;
+    float resizeMultiplier = {};
+    int firstAvailableIndex = {};
+
+    DynamicArray() {
+        arraySize = 1;
+        arrayPointer = new T[1];
+        numberOfNodes = 0;
+        resizeMultiplier = 1.5;
+        firstAvailableIndex = 0;
+    }
+
+    ~DynamicArray() {
+        delete [] arrayPointer;
+    }
+
+    void resize() {
+        int arrayNewSize = arraySize * resizeMultiplier;
+        T* tempPointer = new T[arrayNewSize];
+
+        for (int i = 0; i < arraySize; ++i) {
+            tempPointer[i] = arrayPointer[i];
+        }
+        delete arrayPointer;
+        arraySize = arrayNewSize;
+        arrayPointer = tempPointer;
+    }
+
+    void resize(int arrayNewSize) {
+        T* tempPointer = new T[arrayNewSize];
+
+        for (int i = 0; i < arraySize; ++i) {
+            tempPointer[i] = arrayPointer[i];
+        }
+        delete arrayPointer;
+        arraySize = arrayNewSize;
+        arrayPointer = tempPointer;
+    }
+
+    void resize(int arrayNewSize, T value) {
+        T* tempPointer = new T[arrayNewSize];
+
+        for (int i = 0; i < arraySize; ++i) {
+            tempPointer[i] = value;
+        }
+        delete arrayPointer;
+        arraySize = arrayNewSize;
+        arrayPointer = tempPointer;
+    }
+
+    void addNode(T* newNode) {
+        if(firstAvailableIndex >= arraySize) { resize(); }
+
+        arrayPointer[firstAvailableIndex] = *newNode;
+        firstAvailableIndex++;
+        numberOfNodes++;
+    }
+
+    bool checkIndex(int index){
+        return (index < 0 || index >= arraySize) ? true : false;
+    }
+
+    T v(int index) {
+        return checkIndex(index) ? arrayPointer[index] : 0;
+    }
+
+    bool u(int index, T newValue) {
+        if(checkIndex(index) == false) { return false; }
+        arrayPointer[index] = newValue;
+        return true;
+    }
+
+    void clear() {
+        delete arrayPointer;
+        arrayPointer = new T[arraySize];
+        firstAvailableIndex = 0;
+    }
+};
+
+template <class T>
+struct MergeSort{
+    static void merge(T* array, T* leftArray, T* rightArray, int leftArraySize, int rightArraySize){
+        int arrayIndex = 0, leftArrayIndex = 0, rightArrayIndex = 0;
+
+        while(leftArrayIndex < leftArraySize && rightArrayIndex < rightArraySize){
+            if(leftArray[leftArrayIndex].weight < rightArray[rightArrayIndex].weight){
+                array[arrayIndex++] = leftArray[leftArrayIndex++];
+            }
+            else{
+                array[arrayIndex++] = rightArray[rightArrayIndex++];
+            }
+        }
+
+        while(leftArrayIndex < leftArraySize){
+            array[arrayIndex++] = leftArray[leftArrayIndex++];
+        }
+
+        while(rightArrayIndex < rightArraySize){
+            array[arrayIndex++] = rightArray[rightArrayIndex++];
+        }
+    }
+
+    static void sort(T* array,int size){
+        if (size < 2) {
+            return;
+        }
+        int mid = size / 2;
+        T* leftArray = new T[mid];
+        T* rightArray = new T[size-mid];
+
+        int k = 0;
+        for (int i = 0; i < size; i++) {
+            if(i < mid){
+                leftArray[i] = array[i];
+            }
+            else{
+                rightArray[k] = array[i];
+                k++;
+            }
+        }
+
+        sort(leftArray,mid);
+        sort(rightArray,size - mid);
+
+        merge(array, leftArray, rightArray, mid, size - mid);
+    }
+};
+struct Edge {
+    int firstNode = {};
+    int secondNode = {};
+    float weight = {};
+
+    Edge() = default;
+
+    void setEdge(int fNode, int sNode, float w) {
+        this->firstNode = fNode;
+        this->secondNode = sNode;
+        this->weight = w;
+    }
+};
+
 struct Graph {
-    size_t numberOfNodes = {};
-    size_t numberOfEdges = {};
+    int numberOfNodes = {};
+    int numberOfEdges = {};
 
     struct Node {
         float x = {};
@@ -21,26 +166,12 @@ struct Graph {
         }
     };
 
-    struct Edge {
-        size_t firstNode = {};
-        size_t secondNode = {};
-        float weight = {};
-
-        Edge() = default;
-
-        void setEdge(size_t fNode, size_t sNode, float w) {
-            this->firstNode = fNode;
-            this->secondNode = sNode;
-            this->weight = w;
-        }
-    };
-
     Node* nodeArray = {};
     Edge* edgeArray = {};
 
     Graph() = default;
 
-    Graph(Node* nodeArray, Edge* edgeArray, size_t numberOfNodes, size_t numberOfEdges) {
+    Graph(Node* nodeArray, Edge* edgeArray, int numberOfNodes, int numberOfEdges) {
         this->numberOfNodes = numberOfNodes;
         this->numberOfEdges = numberOfEdges;
         this->nodeArray = nodeArray;
@@ -52,13 +183,13 @@ struct Graph {
         file.open(graphFileName);
         string buffer;
 
-        size_t nOfNodes = 0, nOfEdges = 0;
+        int nOfNodes = 0, nOfEdges = 0;
 
         getline(file, buffer);
         nOfNodes = stoi(buffer);
         Node* nArray = new Node[nOfNodes];
 
-        for (int i = 0; i < nOfNodes; ++i) {
+        for (int i = 0; i < nOfNodes; i++) {
             float x = 0, y = 0;
             getline(file, buffer);
             stringstream ss(buffer);
@@ -84,13 +215,13 @@ struct Graph {
         nOfEdges = stoi(buffer);
         Edge* eArray = new Edge[nOfEdges];
 
-        for (int i = 0; i < nOfEdges; ++i) {
-            size_t firstNode, secondNode;
+        for (int i = 0; i < nOfEdges; i++) {
+            int firstNode, secondNode;
             float weight;
 
             getline(file, buffer);
             stringstream ss(buffer);
-            for (int j = 0; j < 3; ++j) {
+            for (int j = 0; j < 3; j++) {
                 string str;
                 ss >> str;
 
@@ -115,56 +246,88 @@ struct Graph {
     }
 };
 
-class UnionFind {
-    size_t* indexPointer = {};
-    size_t* ranges = {};
+struct DisjointSet {
+    int* parent = {};
+    int* rank = {};
+    int* size = {};
 
-    UnionFind(size_t numberOfNodes) {
+    DisjointSet(int numberOfNodes) {
+        parent = new int[numberOfNodes];
+        rank = new int[numberOfNodes];
+        size = new int[numberOfNodes];
 
-    }
-
-    static void unionStandard(size_t index1, size_t index2) {
-
-    }
-
-    static void unionByRank(size_t index1, size_t index2) {
-
-    }
-
-
-    static int findStandard() {
-
-    }
-
-    static int findPathCompression() {
-
-    }
-
-    static void sort(Graph* graph) {
-        bool swapped;
-        for (int i = 0; i < graph->numberOfEdges - 1; ++i) {
-            swapped = false;
-            for (int j = 0; j < graph->numberOfEdges - i - 1; ++j) {
-                if (graph->edgeArray[j].weight > graph->edgeArray[j + 1].weight) {
-                    swap(graph->edgeArray[j], graph->edgeArray[j + 1]);
-                    swapped = true;
-                }
-            }
-            if (!swapped) {break;}
+        for (int i = 0; i < numberOfNodes; i++) {
+            parent[i] = i;
+            rank[i] = 0;
+            size[i] = 1;
         }
     }
+
+    void unionSetStandard(int index1, int index2) {
+        int root1 = findSetStandard(index1);
+        int root2 = findSetStandard(index2);
+
+        if (root1 == root2){
+            return;
+        }
+
+        if(rank[root1] < rank[root2]) {
+            parent[root1] = root2;
+        }
+        else if(rank[root1] > rank[root2]) {
+            parent[root2] = root1;
+        }
+        else {
+            parent[root2] = root1;
+            rank[root1]++;
+        }
+    }
+
+    void unionSetByRank(int index1, int index2) {
+
+    }
+
+
+    int findSetStandard(int node) {
+        if (parent[node] != node){
+            parent[node]  = findSetStandard(parent[node]);
+        }
+        return parent[node];
+    }
+
+    static int findSetPathCompression() {
+
+    }
 };
 
-class Kruskal{
+void kruskal(Graph* graph, Edge* mst){
+    DisjointSet ds(graph->numberOfNodes);
+    MergeSort<Edge>::sort(graph->edgeArray, graph->numberOfEdges);
+    float sumOfWeights = 0;
+    int mstNumberOfEdges = 0, numberOfFindOperations = 0;
 
-};
+    for (int i = 0; i < graph->numberOfEdges; i++) {
+        int node1 = graph->edgeArray[i].firstNode;
+        int node2 = graph->edgeArray[i].secondNode;
+        float weight = graph->edgeArray[i].weight;
+
+        if(ds.findSetStandard(node1) != ds.findSetStandard(node2)){
+            ds.unionSetStandard(node1, node2);
+            sumOfWeights += weight;
+            mstNumberOfEdges++;
+        }
+    }
+    cout << "Sum of weights: " << sumOfWeights << ", Number of edges: " << mstNumberOfEdges << endl;
+}
 
 int main() {
     struct Graph* graphs[3];
 
     string graphFiles[3] = {"g1.txt", "g2.txt", "g3.txt"};
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 3; i++) {
         graphs[i] = Graph::readFromFile(graphFiles[i]);
+        Edge* mst = nullptr;
+        kruskal(graphs[i], mst);
     }
 
     return 0;
