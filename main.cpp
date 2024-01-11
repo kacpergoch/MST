@@ -1,11 +1,13 @@
 #include <iostream>
-#include <cstring>
 #include <fstream>
 #include <sstream>
+#include <ctime>
+#include <iomanip>
 using namespace std;
 
+int noFindOperations = 0;
 template <class T>
-struct MergeSort{
+class MergeSort{
     static void merge(T* array, T* leftArray, T* rightArray, int leftArraySize, int rightArraySize){
         int arrayIndex = 0, leftArrayIndex = 0, rightArrayIndex = 0;
 
@@ -27,6 +29,7 @@ struct MergeSort{
         }
     }
 
+public:
     static void sort(T* array,int size){
         if (size < 2) {
             return;
@@ -52,6 +55,7 @@ struct MergeSort{
         merge(array, leftArray, rightArray, mid, size - mid);
     }
 };
+
 struct Edge {
     int firstNode = {};
     int secondNode = {};
@@ -71,8 +75,8 @@ struct Graph {
     int numberOfEdges = {};
 
     struct Node {
-        float x = {};
-        float y = {};
+        float x;
+        float y;
 
         Node() = default;
 
@@ -99,7 +103,7 @@ struct Graph {
         file.open(graphFileName);
         string buffer;
 
-        int nOfNodes = 0, nOfEdges = 0;
+        int nOfNodes, nOfEdges;
 
         getline(file, buffer);
         nOfNodes = stoi(buffer);
@@ -165,21 +169,25 @@ struct Graph {
 struct DisjointSet {
     int* parent = {};
     int* rank = {};
-    int* size = {};
 
-    DisjointSet(int numberOfNodes) {
+    explicit DisjointSet(int numberOfNodes) {
         parent = new int[numberOfNodes];
         rank = new int[numberOfNodes];
-        size = new int[numberOfNodes];
+
 
         for (int i = 0; i < numberOfNodes; i++) {
             parent[i] = i;
             rank[i] = 0;
-            size[i] = 1;
         }
     }
 
     void unionSetStandard(int index1, int index2) {
+        int root1 = findSetStandard(index1);
+        int root2 = findSetStandard(index2);
+        parent[root1] = root2;
+    }
+
+    void unionSetByRank(int index1, int index2) {
         int root1 = findSetStandard(index1);
         int root2 = findSetStandard(index2);
 
@@ -199,29 +207,41 @@ struct DisjointSet {
         }
     }
 
-    void unionSetByRank(int index1, int index2) {
-
-    }
-
 
     int findSetStandard(int node) {
+        noFindOperations++;
         if (parent[node] != node){
             parent[node]  = findSetStandard(parent[node]);
         }
         return parent[node];
     }
 
-    static int findSetPathCompression() {
-
+    int findSetPathCompression(int node) {
+        noFindOperations++;
+        if (parent[node] != node) {
+            int result = findSetPathCompression(parent[node]);
+            parent[node] = result;
+            return result;
+        }
+        return parent[node];
     }
 };
 
 void kruskal(Graph* graph, Edge* mst){
-    DisjointSet ds(graph->numberOfNodes);
-    MergeSort<Edge>::sort(graph->edgeArray, graph->numberOfEdges);
-    float sumOfWeights = 0;
-    int mstNumberOfEdges = 0, numberOfFindOperations = 0;
+    clock_t timeBefore, timeAfter;
+    double timeSort, timeLoop;
 
+    DisjointSet ds(graph->numberOfNodes);
+
+    timeBefore = clock();
+    MergeSort<Edge>::sort(graph->edgeArray, graph->numberOfEdges);
+    timeAfter = clock();
+    timeSort = ((timeAfter - timeBefore) / (double)CLOCKS_PER_SEC);
+
+    float sumOfWeights = 0;
+    int mstNumberOfEdges = 0;
+
+    timeBefore = clock();
     for (int i = 0; i < graph->numberOfEdges; i++) {
         int node1 = graph->edgeArray[i].firstNode;
         int node2 = graph->edgeArray[i].secondNode;
@@ -233,18 +253,73 @@ void kruskal(Graph* graph, Edge* mst){
             mstNumberOfEdges++;
         }
     }
-    cout << "Sum of weights: " << sumOfWeights << ", Number of edges: " << mstNumberOfEdges << endl;
+    timeAfter = clock();
+    timeLoop = ((timeAfter - timeBefore) / (double)CLOCKS_PER_SEC);
+
+    cout << "\t- Sum of weights:\t\t" << sumOfWeights << endl
+         <<"\t- Number of edges:\t\t" << mstNumberOfEdges << endl
+         <<"\t- Number of find() operations:\t" << noFindOperations << endl
+         <<"\t- Time of sort:\t\t\t" << timeSort << endl
+         <<"\t- Time of Main Loop:\t\t" << timeLoop << endl;
+    noFindOperations = 0;
+}
+
+void kruskalOptimized(Graph* graph, Edge* mst){
+    clock_t timeBefore, timeAfter;
+    double timeSort, timeLoop;
+
+    DisjointSet ds(graph->numberOfNodes);
+
+    timeBefore = clock();
+    MergeSort<Edge>::sort(graph->edgeArray, graph->numberOfEdges);
+    timeAfter = clock();
+    timeSort = ((timeAfter - timeBefore) / (double)CLOCKS_PER_SEC);
+
+    float sumOfWeights = 0;
+    int mstNumberOfEdges = 0;
+
+
+    timeBefore = clock();
+    for (int i = 0; i < graph->numberOfEdges; i++) {
+        int node1 = graph->edgeArray[i].firstNode;
+        int node2 = graph->edgeArray[i].secondNode;
+        float weight = graph->edgeArray[i].weight;
+
+        if(ds.findSetPathCompression(node1) != ds.findSetPathCompression(node2)){
+            ds.unionSetByRank(node1, node2);
+            sumOfWeights += weight;
+            mstNumberOfEdges++;
+        }
+    }
+    timeAfter = clock();
+    timeLoop = ((timeAfter - timeBefore) / (double)CLOCKS_PER_SEC);
+
+    cout << "\t- Sum of weights:\t\t" << sumOfWeights << endl
+         <<"\t- Number of edges:\t\t" << mstNumberOfEdges << endl
+         <<"\t- Number of find() operations:\t" << noFindOperations << endl
+         <<"\t- Time of sort:\t\t\t" << timeSort << endl
+         <<"\t- Time of Main Loop:\t\t" << timeLoop << endl;
+    noFindOperations = 0;
 }
 
 int main() {
     struct Graph* graphs[3];
-
     string graphFiles[3] = {"g1.txt", "g2.txt", "g3.txt"};
+
+    cout << "\t\tUnionFind Standard " << endl;
     for (int i = 0; i < 3; i++) {
         graphs[i] = Graph::readFromFile(graphFiles[i]);
         Edge* mst = nullptr;
+        cout << "[ Graph " << i+1 << " ]" << endl;
         kruskal(graphs[i], mst);
     }
 
+    cout << endl << endl << "\t\tUnionFind Optimized" << endl;
+    for (int i = 0; i < 3; i++) {
+        graphs[i] = Graph::readFromFile(graphFiles[i]);
+        Edge* mst = nullptr;
+        cout << "[ Graph " << i+1 << " ]" << endl;
+        kruskalOptimized(graphs[i], mst);
+    }
     return 0;
 }
