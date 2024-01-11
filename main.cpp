@@ -2,10 +2,10 @@
 #include <fstream>
 #include <sstream>
 #include <ctime>
-#include <iomanip>
 using namespace std;
 
-int noFindOperations = 0;
+int countFindOperations = 0;
+
 template <class T>
 class MergeSort{
     static void merge(T* array, T* leftArray, T* rightArray, int leftArraySize, int rightArraySize){
@@ -57,11 +57,9 @@ public:
 };
 
 struct Edge {
-    int firstNode = {};
-    int secondNode = {};
-    float weight = {};
-
-    Edge() = default;
+    int firstNode;
+    int secondNode;
+    float weight;
 
     void setEdge(int fNode, int sNode, float w) {
         this->firstNode = fNode;
@@ -77,8 +75,6 @@ struct Graph {
     struct Node {
         float x;
         float y;
-
-        Node() = default;
 
         void setNode(float xx, float yy){
             this->x = xx;
@@ -174,7 +170,6 @@ struct DisjointSet {
         parent = new int[numberOfNodes];
         rank = new int[numberOfNodes];
 
-
         for (int i = 0; i < numberOfNodes; i++) {
             parent[i] = i;
             rank[i] = 0;
@@ -209,7 +204,7 @@ struct DisjointSet {
 
 
     int findSetStandard(int node) {
-        noFindOperations++;
+        countFindOperations++;
         if (parent[node] != node){
             parent[node]  = findSetStandard(parent[node]);
         }
@@ -217,7 +212,7 @@ struct DisjointSet {
     }
 
     int findSetPathCompression(int node) {
-        noFindOperations++;
+        countFindOperations++;
         if (parent[node] != node) {
             int result = findSetPathCompression(parent[node]);
             parent[node] = result;
@@ -227,7 +222,7 @@ struct DisjointSet {
     }
 };
 
-void kruskal(Graph* graph, Edge* mst){
+Edge* kruskal(Graph* graph, bool optimizationFlag){
     clock_t timeBefore, timeAfter;
     double timeSort, timeLoop;
 
@@ -241,85 +236,63 @@ void kruskal(Graph* graph, Edge* mst){
     float sumOfWeights = 0;
     int mstNumberOfEdges = 0;
 
-    timeBefore = clock();
-    for (int i = 0; i < graph->numberOfEdges; i++) {
-        int node1 = graph->edgeArray[i].firstNode;
-        int node2 = graph->edgeArray[i].secondNode;
-        float weight = graph->edgeArray[i].weight;
+    if (!optimizationFlag) {
+        timeBefore = clock();
+        for (int i = 0; i < graph->numberOfEdges; i++) {
+            int node1 = graph->edgeArray[i].firstNode;
+            int node2 = graph->edgeArray[i].secondNode;
+            float weight = graph->edgeArray[i].weight;
 
-        if(ds.findSetStandard(node1) != ds.findSetStandard(node2)){
-            ds.unionSetStandard(node1, node2);
-            sumOfWeights += weight;
-            mstNumberOfEdges++;
+            if (ds.findSetStandard(node1) != ds.findSetStandard(node2)) {
+                ds.unionSetStandard(node1, node2);
+                sumOfWeights += weight;
+                mstNumberOfEdges++;
+            }
         }
+        timeAfter = clock();
+        timeLoop = ((timeAfter - timeBefore) / (double) CLOCKS_PER_SEC);
+    } else {
+        timeBefore = clock();
+        for (int i = 0; i < graph->numberOfEdges; i++) {
+            int node1 = graph->edgeArray[i].firstNode;
+            int node2 = graph->edgeArray[i].secondNode;
+            float weight = graph->edgeArray[i].weight;
+
+            if(ds.findSetPathCompression(node1) != ds.findSetPathCompression(node2)){
+                ds.unionSetByRank(node1, node2);
+                sumOfWeights += weight;
+                mstNumberOfEdges++;
+            }
+        }
+        timeAfter = clock();
+        timeLoop = ((timeAfter - timeBefore) / (double)CLOCKS_PER_SEC);
     }
-    timeAfter = clock();
-    timeLoop = ((timeAfter - timeBefore) / (double)CLOCKS_PER_SEC);
 
     cout << "\t- Sum of weights:\t\t" << sumOfWeights << endl
-         <<"\t- Number of edges:\t\t" << mstNumberOfEdges << endl
-         <<"\t- Number of find() operations:\t" << noFindOperations << endl
-         <<"\t- Time of sort:\t\t\t" << timeSort << endl
-         <<"\t- Time of Main Loop:\t\t" << timeLoop << endl;
-    noFindOperations = 0;
-}
-
-void kruskalOptimized(Graph* graph, Edge* mst){
-    clock_t timeBefore, timeAfter;
-    double timeSort, timeLoop;
-
-    DisjointSet ds(graph->numberOfNodes);
-
-    timeBefore = clock();
-    MergeSort<Edge>::sort(graph->edgeArray, graph->numberOfEdges);
-    timeAfter = clock();
-    timeSort = ((timeAfter - timeBefore) / (double)CLOCKS_PER_SEC);
-
-    float sumOfWeights = 0;
-    int mstNumberOfEdges = 0;
-
-
-    timeBefore = clock();
-    for (int i = 0; i < graph->numberOfEdges; i++) {
-        int node1 = graph->edgeArray[i].firstNode;
-        int node2 = graph->edgeArray[i].secondNode;
-        float weight = graph->edgeArray[i].weight;
-
-        if(ds.findSetPathCompression(node1) != ds.findSetPathCompression(node2)){
-            ds.unionSetByRank(node1, node2);
-            sumOfWeights += weight;
-            mstNumberOfEdges++;
-        }
-    }
-    timeAfter = clock();
-    timeLoop = ((timeAfter - timeBefore) / (double)CLOCKS_PER_SEC);
-
-    cout << "\t- Sum of weights:\t\t" << sumOfWeights << endl
-         <<"\t- Number of edges:\t\t" << mstNumberOfEdges << endl
-         <<"\t- Number of find() operations:\t" << noFindOperations << endl
-         <<"\t- Time of sort:\t\t\t" << timeSort << endl
-         <<"\t- Time of Main Loop:\t\t" << timeLoop << endl;
-    noFindOperations = 0;
+         << "\t- Number of edges:\t\t" << mstNumberOfEdges << endl
+         << "\t- Number of find() operations:\t" << countFindOperations << endl
+         << "\t- Time of sort:\t\t\t" << timeSort << endl
+         << "\t- Time of Main Loop:\t\t" << timeLoop << endl;
+    countFindOperations = 0;
 }
 
 int main() {
     struct Graph* graphs[3];
+    struct Edge* mstGraphs[3];
     string graphFiles[3] = {"g1.txt", "g2.txt", "g3.txt"};
 
     cout << "\t\tUnionFind Standard " << endl;
     for (int i = 0; i < 3; i++) {
         graphs[i] = Graph::readFromFile(graphFiles[i]);
-        Edge* mst = nullptr;
         cout << "[ Graph " << i+1 << " ]" << endl;
-        kruskal(graphs[i], mst);
+        mstGraphs[i] = kruskal(graphs[i], false);
     }
 
     cout << endl << endl << "\t\tUnionFind Optimized" << endl;
     for (int i = 0; i < 3; i++) {
         graphs[i] = Graph::readFromFile(graphFiles[i]);
-        Edge* mst = nullptr;
         cout << "[ Graph " << i+1 << " ]" << endl;
-        kruskalOptimized(graphs[i], mst);
+        mstGraphs[i] = kruskal(graphs[i], true);
     }
     return 0;
 }
